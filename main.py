@@ -31,7 +31,7 @@ def keep_alive():
 # ==========================================
 
 def load_data():
-    default_data = {'users': {}, 'tasks': [], 'task_id': 0, 'codes': {}, 'orders': []}
+    default_data = {'users': {}, 'tasks': [], 'task_id': 0, 'codes': {}, 'orders': [], 'order_id': 0}
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
@@ -45,6 +45,15 @@ def save_data(data):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 data = load_data()
+
+# أسعار الخدمات
+PRICES = {
+    'tt_follow_real': {'name': 'متابعين تيك توك حقيقيين فوري', 'price': 12},
+    'tt_like_vip': {'name': 'اعجابات تيك توك VIP ثابت حقيقي', 'price': 4},
+    'tt_view_real': {'name': 'مشاهدات تيك توك حقيقي', 'price': 2},
+    'ig_follow_vip': {'name': 'متابعين انستغرام VIP ثابت فوري', 'price': 18},
+    'tg_members_life': {'name': 'مشتركين تلجرام مدى الحياة', 'price': 12},
+}
 
 def get_user(user_id):
     uid = str(user_id)
@@ -99,10 +108,7 @@ def send_main_menu(chat_id, user_id):
                types.InlineKeyboardButton('📅 طلباتي', callback_data='my_orders'))
     markup.row(types.InlineKeyboardButton('💰 شحن نقاط', callback_data='charge'),
                types.InlineKeyboardButton('📊 اكتمال الطلبات', callback_data='completed'))
-    markup.row(types.InlineKeyboardButton('🤖 تحديثات البوت', callback_data='updates'),
-               types.InlineKeyboardButton('⚠️ شروط الاستخدام', callback_data='terms'))
-    markup.add(types.InlineKeyboardButton('⭐ نجوم 🎁 جوائز 🪙 رصيد 1️⃣ ارقام', callback_data='stars'))
-    markup.add(types.InlineKeyboardButton('✅ طلبات انجزناها 2601569 طلب', callback_data='stats'))
+    markup.add(types.InlineKeyboardButton('🤖 لوحة الأدمن', callback_data='admin_panel'))
     bot.send_message(chat_id, text, reply_markup=markup, parse_mode='Markdown')
 
 @bot.message_handler(commands=['start'])
@@ -126,10 +132,10 @@ def start(message):
 def handle_buttons(call):
     user_id = call.from_user.id
     uid = str(user_id)
+    user = get_user(user_id)
 
     if call.data == 'check_sub':
         if check_subscription(user_id):
-            user = get_user(user_id)
             if not user.get('subscribed', False):
                 user['points'] += 100
                 user['subscribed'] = True
@@ -148,34 +154,141 @@ def handle_buttons(call):
     if call.data == 'services':
         text = "• أهلاً بك في قسم الخدمات 🟥\n• اختر الخدمة التي تريدها ⬇️"
         markup = types.InlineKeyboardMarkup(row_width=2)
-        markup.add(types.InlineKeyboardButton('🎁 الخدمات المجانية', callback_data='free_services'))
         markup.row(types.InlineKeyboardButton('تلجرام ✈️', callback_data='cat_telegram'),
                    types.InlineKeyboardButton('انستغرام 📸', callback_data='cat_instagram'))
         markup.row(types.InlineKeyboardButton('تيك توك 🎵', callback_data='cat_tiktok'),
                    types.InlineKeyboardButton('فيس بوك 📘', callback_data='cat_facebook'))
         markup.row(types.InlineKeyboardButton('يوتيوب ▶️', callback_data='cat_youtube'),
                    types.InlineKeyboardButton('تويتر 𝕏', callback_data='cat_twitter'))
-        markup.row(types.InlineKeyboardButton('واتساب 💬', callback_data='cat_whatsapp'),
-                   types.InlineKeyboardButton('سناب 👻', callback_data='cat_snapchat'))
-        markup.row(types.InlineKeyboardButton('ثريدز 🧵', callback_data='cat_threads'),
-                   types.InlineKeyboardButton('دعم حقيقي 🧑‍💻', callback_data='cat_support'))
-        markup.row(types.InlineKeyboardButton('تفاعلات تلجرام 💖', callback_data='cat_tg_react'),
-                   types.InlineKeyboardButton('كيك 🟢', callback_data='cat_kick'))
-        markup.row(types.InlineKeyboardButton('تويتش 🟣', callback_data='cat_twitch'),
-                   types.InlineKeyboardButton('كواي 🟧', callback_data='cat_kwai'))
-        markup.add(types.InlineKeyboardButton('سبوتيفاي 🟢', callback_data='cat_spotify'))
-        markup.add(types.InlineKeyboardButton('📢 قسم الإعلانات', callback_data='ads_section'))
         markup.add(types.InlineKeyboardButton('⬅️ رجوع', callback_data='back_main'))
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+    elif call.data == 'cat_tiktok':
+        text = "| مرحباً بك في قسم : تيك توك 🟡\n| اختر ما تريد من الخدمات : ⬇️ 🟩"
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(types.InlineKeyboardButton('🚀 متابعين تيك توك حقيقيين فوري - 12 نقطة', callback_data='order_tt_follow_real'))
+        markup.add(types.InlineKeyboardButton('☑️ اعجابات فيديو تيك توك VIP - 4 نقطة', callback_data='order_tt_like_vip'))
+        markup.add(types.InlineKeyboardButton('✅ مشاهدات تيك توك حقيقي - 2 نقطة', callback_data='order_tt_view_real'))
+        markup.add(types.InlineKeyboardButton('⬅️ رجوع', callback_data='services'))
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+    elif call.data == 'cat_instagram':
+        text = "| مرحباً بك في قسم : انستغرام 🟡\n| اختر ما تريد من الخدمات : ⬇️ 🟩"
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(types.InlineKeyboardButton('🚀 متابعين انستغرام VIP ثابت فوري - 18 نقطة', callback_data='order_ig_follow_vip'))
+        markup.add(types.InlineKeyboardButton('⬅️ رجوع', callback_data='services'))
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+    elif call.data == 'cat_telegram':
+        text = "| مرحباً بك في قسم : تلجرام 🟡\n| اختر ما تريد من الخدمات : ⬇️ 🟩"
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(types.InlineKeyboardButton('♻️ مشتركين تلجرام مدى الحياة - 12 نقطة', callback_data='order_tg_members_life'))
+        markup.add(types.InlineKeyboardButton('⬅️ رجوع', callback_data='services'))
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+    # ======== معالجة الطلبات الفعلية ========
+    elif call.data.startswith('order_'):
+        service_key = call.data.replace('order_', '')
+        if service_key in PRICES:
+            service = PRICES[service_key]
+            if user['points'] < service['price']:
+                bot.answer_callback_query(call.id, f"❌ رصيدك غير كافي!\nتحتاج {service['price']} نقطة", show_alert=True)
+                return
+
+            user_state[user_id] = {'action': 'waiting_link', 'service': service_key}
+            bot.edit_message_text(
+                f"📝 **{service['name']}**\n\n"
+                f"💰 السعر: `{service['price']}` نقطة\n"
+                f"💎 رصيدك الحالي: `{user['points']}` نقطة\n\n"
+                f"أرسل **رابط الحساب/المنشور** الآن:",
+                call.message.chat.id, call.message.message_id,
+                parse_mode='Markdown'
+            )
+        else:
+            bot.answer_callback_query(call.id, "⚠️ هذه الخدمة قيد التطوير", show_alert=True)
 
     elif call.data == 'back_main':
         bot.delete_message(call.message.chat.id, call.message.message_id)
         send_main_menu(call.message.chat.id, user_id)
 
+    elif call.data == 'admin_panel':
+        if user_id == ADMIN_ID:
+            orders_text = f"📊 **لوحة الأدمن**\n\nإجمالي الطلبات: `{len(data['orders'])}`\n\n"
+            if data['orders']:
+                for order in data['orders'][-5:]:
+                    orders_text += f"#{order['id']} - {order['service_name']}\n👤 {order['user_id']}\n🔗 {order['link']}\n📅 {order['date']}\n\n"
+            else:
+                orders_text += "لا توجد طلبات بعد"
+            bot.edit_message_text(orders_text, call.message.chat.id, call.message.message_id, parse_mode='Markdown')
+        else:
+            bot.answer_callback_query(call.id, "❌ للأدمن فقط", show_alert=True)
+
     else:
         bot.answer_callback_query(call.id, "⚠️ هذه الخدمة قيد التطوير", show_alert=True)
 
-# شغل السيرفر أولاً
+@bot.message_handler(func=lambda message: user_state.get(message.from_user.id, {}).get('action') == 'waiting_link')
+def process_link(message):
+    user_id = message.from_user.id
+    uid = str(user_id)
+    user = get_user(user_id)
+    state = user_state[user_id]
+    service_key = state['service']
+    service = PRICES[service_key]
+
+    if user['points'] < service['price']:
+        bot.send_message(message.chat.id, "❌ رصيدك غير كافي!")
+        user_state.pop(user_id)
+        send_main_menu(message.chat.id, user_id)
+        return
+
+    # خصم النقاط
+    user['points'] -= service['price']
+
+    # تسجيل الطلب
+    data['order_id'] += 1
+    order = {
+        'id': data['order_id'],
+        'user_id': user_id,
+        'username': message.from_user.username or 'بدون يوزر',
+        'service': service_key,
+        'service_name': service['name'],
+        'link': message.text,
+        'price': service['price'],
+        'date': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'status': 'قيد التنفيذ'
+    }
+    data['orders'].append(order)
+    user['my_orders'].append(order['id'])
+    save_data(data)
+
+    # رسالة للمستخدم
+    bot.send_message(
+        message.chat.id,
+        f"✅ **تم استلام طلبك بنجاح**\n\n"
+        f"🆔 رقم الطلب: `#{order['id']}`\n"
+        f"📦 الخدمة: {service['name']}\n"
+        f"🔗 الرابط: {message.text}\n"
+        f"💰 المبلغ المخصوم: `{service['price']}` نقطة\n"
+        f"💎 رصيدك المتبقي: `{user['points']}` نقطة\n\n"
+        f"⏳ جاري التنفيذ خلال 24 ساعة",
+        parse_mode='Markdown'
+    )
+
+    # إشعار للأدمن
+    bot.send_message(
+        ADMIN_ID,
+        f"🔔 **طلب جديد**\n\n"
+        f"🆔 رقم الطلب: `#{order['id']}`\n"
+        f"👤 المستخدم: `{user_id}`\n"
+        f"📦 الخدمة: {service['name']}\n"
+        f"🔗 الرابط: {message.text}\n"
+        f"💰 السعر: `{service['price']}` نقطة",
+        parse_mode='Markdown'
+    )
+
+    user_state.pop(user_id)
+    send_main_menu(message.chat.id, user_id)
+
 keep_alive()
 print("البوت شغال...")
 bot.infinity_polling()
